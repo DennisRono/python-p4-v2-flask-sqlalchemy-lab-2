@@ -1,6 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
-from sqlalchemy.orm import relationship
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy_serializer import SerializerMixin
 
@@ -22,22 +21,39 @@ class Review(db.Model, SerializerMixin):
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"), nullable=False)
 
-    customer = relationship("Customer", back_populates="reviews")
-    item = relationship("Item", back_populates="reviews")
+    # Relationships
+    customer = db.relationship("Customer", back_populates="reviews")
+    item = db.relationship("Item", back_populates="reviews")
+
+    # Serialization rules to prevent circular dependencies
+    serialize_rules = ("-customer.reviews", "-item.reviews")
 
 
 class Customer(db.Model, SerializerMixin):
     __tablename__ = "customers"
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
 
-    reviews = relationship("Review", back_populates="customer")
+    # Relationship to Review
+    reviews = db.relationship("Review", back_populates="customer")
+
+    # Association proxy to get items through reviews
+    items = association_proxy("reviews", "item")
+
+    # Serialization rule
+    serialize_rules = ("-reviews.customer",)
 
 
 class Item(db.Model, SerializerMixin):
     __tablename__ = "items"
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
     price = db.Column(db.Float, nullable=False)
 
-    reviews = relationship("Review", back_populates="item")
+    # Relationship to Review
+    reviews = db.relationship("Review", back_populates="item")
+
+    # Serialization rule
+    serialize_rules = ("-reviews.item",)
